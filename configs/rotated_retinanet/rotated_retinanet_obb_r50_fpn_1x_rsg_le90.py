@@ -90,3 +90,18 @@ data = dict(
     train=dict(pipeline=train_pipeline, version=angle_version),
     val=dict(version=angle_version),
     test=dict(version=angle_version))
+
+optimizer = dict(
+    _delete_=True,
+    type='AdamW',
+    lr=0.0001,
+    betas=(0.9, 0.999),
+    weight_decay=0.05,
+    paramwise_cfg=dict(
+        custom_keys=dict(
+            absolute_pos_embed=dict(decay_mult=0.0),
+            relative_position_bias_table=dict(decay_mult=0.0),
+            norm=dict(decay_mult=0.0))))
+
+checkpoint_config = dict(interval=1, max_keep_ckpts=1)
+evaluation = dict(interval=6, metric='mAP')
