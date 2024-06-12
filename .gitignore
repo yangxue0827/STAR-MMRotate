@@ -123,3 +123,4 @@ tmp
 # custom
 mmrotate/.mim
 *.pth
+pjlab*
