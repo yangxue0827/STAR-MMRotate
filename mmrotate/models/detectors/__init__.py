@@ -19,10 +19,13 @@ from .rotated_deformable_detr import RotatedDeformableDETR
 from .ars_detr import ARSDETR
 from .h2rbox import H2RBox
 
+from .r3det_crop import R3DetCrop
+from .s2anet_crop import S2ANetCrop
+
 __all__ = [
     'RotatedRetinaNet', 'RotatedFasterRCNN', 'OrientedRCNN', 'RoITransformer',
     'GlidingVertex', 'ReDet', 'R3Det', 'S2ANet', 'RotatedRepPoints',
     'RotatedBaseDetector', 'RotatedSingleStageDetectorCrop', 'RotatedTwoStageDetector',
     'RotatedSingleStageDetector', 'RotatedFCOS', 'RotatedTwoStageDetectorCrop',
-    'RotatedDETR', 'RotatedDeformableDETR', 'ARSDETR', 'H2RBox'
+    'RotatedDETR', 'RotatedDeformableDETR', 'ARSDETR', 'H2RBox','R3DetCrop','S2ANetCrop'
 ]
