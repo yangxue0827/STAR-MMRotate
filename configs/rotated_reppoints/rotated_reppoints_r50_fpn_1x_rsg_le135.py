@@ -4,8 +4,9 @@ _base_ = [
 ]
 
 angle_version = 'le135'
+norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 model = dict(
-    type='S2ANetCrop',
+    type='RotatedRepPoints',
     backbone=dict(
         type='ResNet',
         depth=50,
@@ -23,91 +24,54 @@ model = dict(
         out_channels=256,
         start_level=1,
         add_extra_convs='on_input',
-        num_outs=5),
-    fam_head=dict(
-        type='RotatedRetinaHead',
+        num_outs=5,
+        norm_cfg=norm_cfg),
+    bbox_head=dict(
+        type='RotatedRepPointsHead',
         num_classes=48,
         in_channels=256,
-        stacked_convs=2,
         feat_channels=256,
-        assign_by_circumhbbox=None,
-        anchor_generator=dict(
-            type='RotatedAnchorGenerator',
-            scales=[4],
-            ratios=[1.0],
-            strides=[8, 16, 32, 64, 128]),
-        bbox_coder=dict(
-            type='DeltaXYWHAOBBoxCoder',
-            angle_range=angle_version,
-            norm_factor=1,
-            edge_swap=False,
-            proj_xy=True,
-            target_means=(.0, .0, .0, .0, .0),
-            target_stds=(1.0, 1.0, 1.0, 1.0, 1.0)),
+        point_feat_channels=256,
+        stacked_convs=3,
+        num_points=9,
+        gradient_mul=0.3,
+        point_strides=[8, 16, 32, 64, 128],
+        point_base_scale=2,
+        norm_cfg=norm_cfg,
         loss_cls=dict(
             type='FocalLoss',
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
             loss_weight=1.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0)),
-    align_cfgs=dict(
-        type='AlignConv',
-        kernel_size=3,
-        channels=256,
-        featmap_strides=[8, 16, 32, 64, 128]),
-    odm_head=dict(
-        type='ODMRefineHead',
-        num_classes=48,
-        in_channels=256,
-        stacked_convs=2,
-        feat_channels=256,
-        assign_by_circumhbbox=None,
-        anchor_generator=dict(
-            type='PseudoAnchorGenerator', strides=[8, 16, 32, 64, 128]),
-        bbox_coder=dict(
-            type='DeltaXYWHAOBBoxCoder',
-            angle_range=angle_version,
-            norm_factor=1,
-            edge_swap=False,
-            proj_xy=True,
-            target_means=(0.0, 0.0, 0.0, 0.0, 0.0),
-            target_stds=(1.0, 1.0, 1.0, 1.0, 1.0)),
-        loss_cls=dict(
-            type='FocalLoss',
-            use_sigmoid=True,
-            gamma=2.0,
-            alpha=0.25,
-            loss_weight=1.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0)),
+        loss_bbox_init=dict(type='ConvexGIoULoss', loss_weight=0.375),
+        loss_bbox_refine=dict(type='ConvexGIoULoss', loss_weight=1.0),
+        transform_method='rotrect',
+        use_reassign=False,
+        topk=6,
+        anti_factor=0.75),
+    # training and testing settings
     train_cfg=dict(
-        fam_cfg=dict(
-            assigner=dict(
-                type='MaxIoUAssigner',
-                pos_iou_thr=0.5,
-                neg_iou_thr=0.4,
-                min_pos_iou=0,
-                ignore_iof_thr=-1,
-                iou_calculator=dict(type='RBboxOverlaps2D')),
+        init=dict(
+            assigner=dict(type='ConvexAssigner', scale=4, pos_num=1),
             allowed_border=-1,
             pos_weight=-1,
             debug=False),
-        odm_cfg=dict(
+        refine=dict(
             assigner=dict(
-                type='MaxIoUAssigner',
-                pos_iou_thr=0.5,
-                neg_iou_thr=0.4,
+                type='MaxConvexIoUAssigner',
+                pos_iou_thr=0.4,
+                neg_iou_thr=0.3,
                 min_pos_iou=0,
-                ignore_iof_thr=-1,
-                iou_calculator=dict(type='RBboxOverlaps2D')),
+                ignore_iof_thr=-1),
             allowed_border=-1,
             pos_weight=-1,
             debug=False)),
     test_cfg=dict(
-        nms_pre=2000,
+        nms_pre=1000,
         min_bbox_size=0,
         score_thr=0.05,
-        nms=dict(iou_thr=0.1),
+        nms=dict(iou_thr=0.4),
         max_per_img=2000))
 
 img_norm_cfg = dict(
@@ -144,5 +108,5 @@ optimizer = dict(
             norm=dict(decay_mult=0.0))))
 
 checkpoint_config = dict(interval=1, max_keep_ckpts=1)
-evaluation = dict(interval=6, metric='mAP')
+evaluation = dict(interval=12, metric='mAP')
 

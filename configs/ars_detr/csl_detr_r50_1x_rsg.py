@@ -147,3 +147,4 @@ optimizer = dict(
 
 checkpoint_config = dict(interval=1, max_keep_ckpts=1)
 evaluation = dict(interval=6, metric='mAP')
+find_unused_parameters=True

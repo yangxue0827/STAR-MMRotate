@@ -2,7 +2,7 @@
 import torch
 
 from mmdet.core import bbox_xyxy_to_cxcywh
-from mmrotate.core.bbox.coder import CSLCoder
+from mmrotate.core.bbox.coder import ARCSLCoder
 
 class DnQueryGenerator:
 
@@ -170,7 +170,7 @@ class DnQueryGenerator:
             rand_part *= rand_sign
             known_angle_ += \
                 torch.mul(rand_part, known_angle_).cuda() * self.angle_noise_scale
-            known_angle_expand = CSLCoder.check_angle(known_angle_)
+            known_angle_expand = ARCSLCoder.check_angle(known_angle_)
 
         m = known_labels_expand.long().to('cuda')
         input_label_embed = label_enc(m)

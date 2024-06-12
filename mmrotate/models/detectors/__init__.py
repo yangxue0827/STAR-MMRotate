@@ -18,7 +18,6 @@ from .rotated_detr import RotatedDETR
 from .rotated_deformable_detr import RotatedDeformableDETR
 from .ars_detr import ARSDETR
 from .h2rbox import H2RBox
-
 from .r3det_crop import R3DetCrop
 from .s2anet_crop import S2ANetCrop
 
