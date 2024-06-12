@@ -6,13 +6,19 @@ The official implementation of the oriented object detection part of the paper "
 
 **TL;DR:** We propose RSG, the first large-scale dataset for scene graph generation in large-size VHR SAI. Containing more than `210,000` objects and over `400,000` triplets across `1,273` complex scenarios globally.
 
-<p align="center">
-<img src="demo/rsg.jpg" alt="scatter" width="98%"/> 
-</p>
+<video width="320" height="240" controls>
+    <source src="demo/demo.mp4" type="video/mp4">
+</video>
+
+https://github.com/linlin-dev/linlin-dev.github.io/blob/main/figure/demo2.mp4
 
 ## 📌 Abstract
 
 Scene graph generation (SGG) in satellite imagery (SAI) benefits promoting intelligent understanding of geospatial scenarios from perception to cognition. In SAI, objects exhibit great variations in scales and aspect ratios, and there exist rich relationships between objects (even between spatially disjoint objects), which makes it necessary to holistically conduct SGG in large-size very-high-resolution (VHR) SAI. However, the lack of SGG datasets with large-size VHR SAI has constrained the advancement of SGG in SAI. Due to the complexity of large-size VHR SAI, mining triplets <subject, relationship, object$> in large-size VHR SAI heavily relies on long-range contextual reasoning. Consequently, SGG models designed for small-size natural imagery are not directly applicable to large-size VHR SAI. To address the scarcity of datasets, this paper constructs a large-scale dataset for SGG in large-size VHR SAI with image sizes ranging from 512 × 768 to 27,860 × 31,096 pixels, named RSG, encompassing over 210,000 objects and more than 400,000 triplets. To realize SGG in large-size VHR SAI, we propose a context-aware cascade cognition (CAC) framework to understand SAI at three levels: object detection (OBD), pair pruning and relationship prediction. As a fundamental prerequisite for SGG in large-size SAI, a holistic multi-class object detection network (HOD-Net) that can flexibly integrate multi-scale contexts is proposed. With the consideration that there exist a huge amount of object pairs in large-size SAI but only a minority of object pairs contain meaningful relationships, we design a pair proposal generation (PPG) network via adversarial reconstruction to select high-value pairs. Furthermore, a relationship prediction network with context-aware messaging (RPCM) is proposed to predict the relationship types of these pairs. To promote the development of SGG in large-size VHR SAI, this paper releases a SAI-oriented SGG toolkit with 3 OBD methods and 5 SGG methods, and develops a benchmark based on RSG where our RPCM outperforms the SOTA methods with a large margin of 3.65\%/5.17\%/3.80\% at HMR@1500 on PredCls/SGCls/SGDet. The RSG dataset and SAI-oriented toolkit will be made publicly available at https://linlin-dev.github.io/project/RSG.html.
+
+<p align="center">
+<img src="demo/rsg.jpg" alt="scatter" width="98%"/> 
+</p>
 
 ## 🛠️ Usage
 
