@@ -1,6 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 
-import math
 import torch
 import torch.nn as nn
 from mmcv.cnn import Scale
@@ -329,9 +328,9 @@ class H2RBoxV2PHead(RotatedAnchorFreeHead):
                 square_mask = torch.logical_or(square_mask, pos_labels == c)
             pos_decoded_angle_preds[square_mask] = 0
             target_mask = torch.abs(
-                pos_angle_targets[square_mask]) < math.pi / 4
+                pos_angle_targets[square_mask]) < torch.pi / 4
             pos_angle_targets[square_mask] = torch.where(
-                target_mask, 0, -math.pi / 2)
+                target_mask, 0, -torch.pi / 2)
             
             pos_bbox_preds = torch.cat(
                 [pos_bbox_preds, pos_decoded_angle_preds], dim=-1)
@@ -392,7 +391,7 @@ class H2RBoxV2PHead(RotatedAnchorFreeHead):
                     d_ang = angle_trs_preds - angle_ori_preds - rot
                 else:
                     d_ang = angle_ori_preds + angle_trs_preds
-                d_ang = (d_ang + math.pi / 2) % math.pi - math.pi / 2
+                d_ang = (d_ang + torch.pi / 2) % torch.pi - torch.pi / 2
                 d_ang[square_mask] = 0
                 loss_ss = self.loss_ss_symmetry(d_ang, torch.zeros_like(d_ang))
             else:
@@ -704,7 +703,8 @@ class H2RBoxV2PHead(RotatedAnchorFreeHead):
             centerness = centerness.permute(1, 2, 0).reshape(-1).sigmoid()
 
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
-            angle_pred = angle_pred.permute(1, 2, 0).reshape(-1, 1)
+            angle_pred = angle_pred.permute(1, 2, 0).reshape(-1, self.angle_coder.encode_size)
+            angle_pred = self.angle_coder.decode(angle_pred, keepdim=True)
             bbox_pred = torch.cat([bbox_pred, angle_pred], dim=1)
             nms_pre = cfg.get('nms_pre', -1)
             if nms_pre > 0 and scores.shape[0] > nms_pre:
@@ -736,6 +736,10 @@ class H2RBoxV2PHead(RotatedAnchorFreeHead):
             cfg.nms,
             cfg.max_per_img,
             score_factors=mlvl_centerness)
+        for id in self.square_cls:
+            det_bboxes[det_labels == id, -1] = 0
+        for id in self.resize_cls:
+            det_bboxes[det_labels == id, 2:4] *= 0.85
         return det_bboxes, det_labels
 
     @force_fp32(

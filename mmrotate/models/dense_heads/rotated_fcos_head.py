@@ -106,6 +106,8 @@ class RotatedFCOSHead(RotatedAnchorFreeHead):
         self.joint_angle = joint_angle
         if angle_coder:
             self.angle_coder = build_bbox_coder(angle_coder)
+        else:
+            self.angle_coder = None
         super().__init__(
             num_classes,
             in_channels,
