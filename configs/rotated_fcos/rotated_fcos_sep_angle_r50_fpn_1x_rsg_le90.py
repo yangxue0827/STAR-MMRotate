@@ -6,7 +6,7 @@ angle_version = 'le90'
 
 # model settings
 model = dict(
-    type='RotatedFCOS',
+    type='RotatedFCOSCrop',
     backbone=dict(
         type='ResNet',
         depth=50,

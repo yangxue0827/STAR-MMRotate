@@ -5,7 +5,7 @@ _base_ = [
     '../_base_/default_runtime.py'
 ]
 model = dict(
-    type='RotatedDeformableDETR',
+    type='RotatedDeformableDETRCrop',
     backbone=dict(
         type='ResNet',
         depth=50,

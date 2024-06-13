@@ -6,7 +6,7 @@ _base_ = [
     '../_base_/default_runtime.py'
 ]
 model = dict(
-    type='ARSDETR',
+    type='ARSDETRCrop',
     backbone=dict(
         type='ResNet',
         depth=50,

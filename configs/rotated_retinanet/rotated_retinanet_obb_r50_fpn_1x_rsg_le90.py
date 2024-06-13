@@ -5,7 +5,7 @@ _base_ = [
 
 angle_version = 'le90'
 model = dict(
-    type='RotatedRetinaNet',
+    type='RotatedRetinaNetCrop',
     backbone=dict(
         type='ResNet',
         depth=50,

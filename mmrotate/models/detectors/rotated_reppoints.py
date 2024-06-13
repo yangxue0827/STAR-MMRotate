@@ -1,10 +1,11 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from ..builder import ROTATED_DETECTORS
 from .single_stage_crop import RotatedSingleStageDetectorCrop
+from .single_stage import RotatedSingleStageDetector
 
 
 @ROTATED_DETECTORS.register_module()
-class RotatedRepPoints(RotatedSingleStageDetectorCrop):
+class RotatedRepPoints(RotatedSingleStageDetector):
     """Implementation of Rotated RepPoints."""
 
     def __init__(self,
@@ -15,4 +16,19 @@ class RotatedRepPoints(RotatedSingleStageDetectorCrop):
                  test_cfg=None,
                  pretrained=None):
         super(RotatedRepPoints, self).__init__(backbone, neck, bbox_head,
+                                               train_cfg, test_cfg, pretrained)
+
+
+@ROTATED_DETECTORS.register_module()
+class RotatedRepPointsCrop(RotatedSingleStageDetectorCrop):
+    """Implementation of Rotated RepPoints."""
+
+    def __init__(self,
+                 backbone,
+                 neck,
+                 bbox_head,
+                 train_cfg=None,
+                 test_cfg=None,
+                 pretrained=None):
+        super(RotatedRepPointsCrop, self).__init__(backbone, neck, bbox_head,
                                                train_cfg, test_cfg, pretrained)

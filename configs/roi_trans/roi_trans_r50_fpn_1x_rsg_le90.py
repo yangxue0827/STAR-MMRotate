@@ -5,7 +5,7 @@ _base_ = [
 
 angle_version = 'le90'
 model = dict(
-    type='RoITransformer',
+    type='RoITransformerCrop',
     backbone=dict(
         type='ResNet',
         depth=50,

@@ -5,7 +5,7 @@ _base_ = [
 
 angle_version = 'le90'
 model = dict(
-    type='ReDet',
+    type='ReDetCrop',
     backbone=dict(
         type='ReResNet',
         depth=50,

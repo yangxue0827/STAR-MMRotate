@@ -7,7 +7,7 @@ angle_version = 'le90'
 
 # model settings
 model = dict(
-    type='H2RBox',
+    type='H2RBoxCrop',
     crop_size=(1024, 1024),
     backbone=dict(
         type='ResNet',
