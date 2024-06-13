@@ -1,12 +1,14 @@
-# Copyright (c) SJTU. All rights reserved.
+# Copyright (c) OpenMMLab. All rights reserved.
 import warnings
 
-from mmcv.runner import ModuleList
+import torch
+import numpy as np
+import torch.nn as nn
 
-from mmrotate.core import rbbox2result
-from ..builder import ROTATED_DETECTORS, build_backbone, build_head, build_neck
-from .base import RotatedBaseDetector
+from ..builder import ROTATED_DETECTORS, build_head
+from .single_stage_crop import RotatedSingleStageDetectorCrop
 from .utils import FeatureRefineModule
+#from mmdet.core import choose_best_match_batch, gt_mask_bp_obbs_list, choose_best_Rroi_batch
 
 
 from mmrotate.models.detectors.single_stage_img_split_bridge_tools import *
@@ -121,7 +123,8 @@ def FullImageCrop(self, imgs, bboxes, labels, patch_shape,
                 p_labels.append(torch.tensor(patch_info['labels'], device=device))
                 p_metas.append({'x_start': torch.tensor(patch_info['x_start'], device=device),
                                 'y_start': torch.tensor(patch_info['y_start'], device=device),
-                                'shape': patch_shape, 'trunc': torch.tensor(obj['trunc'], device=device),'img_shape': patch_shape, 'scale_factor': 1})
+                                'shape': patch_shape, 'trunc': torch.tensor(obj['trunc'], device=device),
+                                'img_shape': patch_shape, 'scale_factor': 1})
 
                 patch = patchs[i]
                 p_imgs.append(patch.to(device))
@@ -157,7 +160,8 @@ def FullImageCrop(self, imgs, bboxes, labels, patch_shape,
         for i, patch_info in enumerate(patch_infos):
             p_metas.append({'x_start': torch.tensor(patch_info['x_start'], device=device),
                             'y_start': torch.tensor(patch_info['y_start'], device=device),
-                            'shape': patch_shape, 'img_shape': patch_shape, 'scale_factor': 1})
+                            'shape': patch_shape, 'img_shape': patch_shape + (3,), 
+                            'batch_input_shape': patch_shape, 'scale_factor': 1})
 
             patch = patchs[i]
             p_imgs.append(patch.to(device))
@@ -168,6 +172,8 @@ def FullImageCrop(self, imgs, bboxes, labels, patch_shape,
         return out_imgs, out_metas
 
     return out_imgs, out_bboxes, out_labels, out_metas
+
+
 
 def relocate(idx, local_bboxes, patch_meta):
     # put patches' local bboxes to full img via patch_meta
@@ -185,67 +191,86 @@ def relocate(idx, local_bboxes, patch_meta):
     return
 
 @ROTATED_DETECTORS.register_module()
-class R3DetCrop(RotatedBaseDetector):
-    """Rotated Refinement RetinaNet."""
+class RotatedDETRCrop(RotatedSingleStageDetectorCrop):
+    r"""Implementation of `DETR: End-to-End Object Detection with
+    Transformers <https://arxiv.org/pdf/2005.12872>`_"""
 
     def __init__(self,
-                 num_refine_stages,
                  backbone,
-                 neck=None,
-                 bbox_head=None,
-                 frm_cfgs=None,
-                 refine_heads=None,
+                 bbox_head,
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None,
                  init_cfg=None):
-        super(R3DetCrop, self).__init__(init_cfg)
-        if pretrained:
-            warnings.warn('DeprecationWarning: pretrained is deprecated, '
-                          'please use "init_cfg" instead')
-            backbone.pretrained = pretrained
-        self.backbone = build_backbone(backbone)
-        self.num_refine_stages = num_refine_stages
-        if neck is not None:
-            self.neck = build_neck(neck)
-        if train_cfg is not None:
-            bbox_head.update(train_cfg=train_cfg['s0'])
-        bbox_head.update(test_cfg=test_cfg)
-        self.bbox_head = build_head(bbox_head)
-        self.feat_refine_module = ModuleList()
-        self.refine_head = ModuleList()
-        for i, (frm_cfg,
-                refine_head) in enumerate(zip(frm_cfgs, refine_heads)):
-            self.feat_refine_module.append(FeatureRefineModule(**frm_cfg))
-            if train_cfg is not None:
-                refine_head.update(train_cfg=train_cfg['sr'][i])
-            refine_head.update(test_cfg=test_cfg)
-            self.refine_head.append(build_head(refine_head))
-        self.train_cfg = train_cfg
-        self.test_cfg = test_cfg
+        super(RotatedDETRCrop, self).__init__(backbone, None, bbox_head, train_cfg,
+                                   test_cfg, pretrained, init_cfg)
 
-    def extract_feat(self, img):
-        """Directly extract features from the backbone+neck."""
-        x = self.backbone(img)
-        if self.with_neck:
-            x = self.neck(x)
-        return x
+    # over-write `forward_dummy` because:
+    # the forward of bbox_head requires img_metas
+    def rbox2result(self, bboxes, labels, num_classes):
+        """Convert detection results to a list of numpy arrays.
+
+        Args:
+            bboxes (torch.Tensor | np.ndarray): shape (n, 5)
+            labels (torch.Tensor | np.ndarray): shape (n, )
+            num_classes (int): class number, including background class
+
+        Returns:
+            list(ndarray): bbox results of each class
+        """
+        if bboxes.shape[0] == 0:
+            return [np.zeros((0, 9), dtype=np.float32) for i in range(num_classes)]  # TODOinsert
+        else:
+            if isinstance(bboxes, torch.Tensor):
+                bboxes = bboxes.detach().cpu().numpy()  # dets,rboxes[keep],scores_k[keep]
+                labels = labels.detach().cpu().numpy()
+
+            return [bboxes[labels == i, :] for i in range(num_classes)]
 
     def forward_dummy(self, img):
         """Used for computing network flops.
 
-        See `mmedetection/tools/get_flops.py`
+        See `mmdetection/tools/analysis_tools/get_flops.py`
+        """
+        warnings.warn('Warning! MultiheadAttention in DETR does not '
+                      'support flops computation! Do not use the '
+                      'results in your papers!')
+
+        batch_size, _, height, width = img.shape
+        dummy_img_metas = [
+            dict(
+                batch_input_shape=(height, width),
+                img_shape=(height, width, 3)) for _ in range(batch_size)
+        ]
+        x = self.extract_feat(img)
+        outs = self.bbox_head(x, dummy_img_metas)
+        return outs
+
+    # over-write `onnx_export` because:
+    # (1) the forward of bbox_head requires img_metas
+    # (2) the different behavior (e.g. construction of `masks`) between
+    # torch and ONNX model, during the forward of bbox_head
+    def onnx_export(self, img, img_metas):
+        """Test function for exporting to ONNX, without test time augmentation.
+
+        Args:
+            img (torch.Tensor): input images.
+            img_metas (list[dict]): List of image information.
+
+        Returns:
+            tuple[Tensor, Tensor]: dets of shape [N, num_det, 5]
+                and class labels of shape [N, num_det].
         """
         x = self.extract_feat(img)
-        outs = self.bbox_head(x)
-        rois = self.bbox_head.filter_bboxes(*outs)
-        # rois: list(indexed by images) of list(indexed by levels)
-        for i in range(self.num_refine_stages):
-            x_refine = self.feat_refine_module[i](x, rois)
-            outs = self.refine_head[i](x_refine)
-            if i + 1 in range(self.num_refine_stages):
-                rois = self.refine_head[i].refine_bboxes(*outs, rois=rois)
-        return outs
+        # forward of this head requires img_metas
+        outs = self.bbox_head.forward_onnx(x, img_metas)
+        # get shape as tensor
+        img_shape = torch._shape_as_tensor(img)[2:]
+        img_metas[0]['img_shape_for_onnx'] = img_shape
+
+        det_bboxes, det_labels = self.bbox_head.onnx_export(*outs, img_metas)
+
+        return det_bboxes, det_labels
 
     def forward_train(self,
                       img,
@@ -253,74 +278,73 @@ class R3DetCrop(RotatedBaseDetector):
                       gt_bboxes,
                       gt_labels,
                       gt_bboxes_ignore=None):
-        """Forward function."""
-        losses = dict()
+        """
+        Args:
+            img (Tensor): Input images of shape (N, C, H, W).
+                Typically these should be mean centered and std scaled.
+            img_metas (list[dict]): A List of image info dict where each dict
+                has: 'img_shape', 'scale_factor', 'flip', and may also contain
+                'filename', 'ori_shape', 'pad_shape', and 'img_norm_cfg'.
+                For details on the values of these keys see
+                :class:`mmdet.datasets.pipelines.Collect`.
+            gt_bboxes (list[Tensor]): Each item are the truth boxes for each
+                image in [tl_x, tl_y, br_x, br_y] format.
+            gt_labels (list[Tensor]): Class indices corresponding to each box
+            gt_bboxes_ignore (None | list[Tensor]): Specify which bounding
+                boxes can be ignored when computing the loss.
+
+        Returns:
+            dict[str, Tensor]: A dictionary of loss components.
+        """
+        super(RotatedSingleStageDetectorCrop, self).forward_train(img, img_metas)
         x = self.extract_feat(img)
-
-        outs = self.bbox_head(x)
-
-        loss_inputs = outs + (gt_bboxes, gt_labels, img_metas)
-        loss_base = self.bbox_head.loss(
-            *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
-        for name, value in loss_base.items():
-            losses[f's0.{name}'] = value
-
-        rois = self.bbox_head.filter_bboxes(*outs)
-        # rois: list(indexed by images) of list(indexed by levels)
-        for i in range(self.num_refine_stages):
-            lw = self.train_cfg.stage_loss_weights[i]
-
-            x_refine = self.feat_refine_module[i](x, rois)
-            outs = self.refine_head[i](x_refine)
-            loss_inputs = outs + (gt_bboxes, gt_labels, img_metas)
-            loss_refine = self.refine_head[i].loss(
-                *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore, rois=rois)
-            for name, value in loss_refine.items():
-                losses[f'sr{i}.{name}'] = ([v * lw for v in value]
-                                           if 'loss' in name else value)
-
-            if i + 1 in range(self.num_refine_stages):
-                rois = self.refine_head[i].refine_bboxes(*outs, rois=rois)
-
+        cost_matrix = np.asarray(x[0].cpu().detach())
+        contain_nan = (True in np.isnan(cost_matrix))
+        if contain_nan:
+            a = 1
+            print('Find!!!')
+            for i in range(len(img_metas)):
+                print('The image is', img_metas[i]['file_name'])
+        losses = self.bbox_head.forward_train(x, img_metas, gt_bboxes,
+                                              gt_labels, gt_bboxes_ignore)
         return losses
 
-    # def simple_test(self, img, img_meta, rescale=False):
-    #     """Test function without test time augmentation.
+    def imshow_gpu_tensor(self, tensor):
+        from PIL import Image
+        from torchvision import transforms
+        device = tensor[0].device
+        mean = torch.tensor([123.675, 116.28, 103.53])
+        std = torch.tensor([58.395, 57.12, 57.375])
+        mean = mean.to(device)
+        std = std.to(device)
+        tensor = (tensor[0].squeeze() * std[:, None, None]) + mean[:, None, None]
+        tensor = tensor[0:1]
+        if len(tensor.shape) == 4:
+            image = tensor.permute(0, 2, 3, 1).cpu().clone().numpy()
+        else:
+            image = tensor.permute(1, 2, 0).cpu().clone().numpy()
+        image = image.astype(np.uint8).squeeze()
+        image = transforms.ToPILImage()(image)
+        image = image.resize((256, 256), Image.ANTIALIAS)
+        image.show(image)
 
-    #     Args:
-    #         imgs (list[torch.Tensor]): List of multiple images
-    #         img_metas (list[dict]): List of image information.
-    #         rescale (bool, optional): Whether to rescale the results.
-    #             Defaults to False.
+    # def simple_test(self, img, img_metas, rescale=False):
+    #     cfg = self.test_cfg
 
-    #     Returns:
-    #         list[list[np.ndarray]]: BBox results of each image and classes. \
-    #             The outer list corresponds to each image. The inner list \
-    #             corresponds to each class.
-    #     """
-    #     x = self.extract_feat(img)
-    #     outs = self.bbox_head(x)
-    #     rois = self.bbox_head.filter_bboxes(*outs)
-    #     # rois: list(indexed by images) of list(indexed by levels)
-    #     for i in range(self.num_refine_stages):
-    #         x_refine = self.feat_refine_module[i](x, rois)
-    #         outs = self.refine_head[i](x_refine)
-    #         if i + 1 in range(self.num_refine_stages):
-    #             rois = self.refine_head[i].refine_bboxes(*outs, rois=rois)
-
-    #     bbox_inputs = outs + (img_meta, self.test_cfg, rescale)
-    #     bbox_list = self.refine_head[-1].get_bboxes(*bbox_inputs, rois=rois)
+    #     feat = self.extract_feat(img)
+    #     results_list = self.bbox_head.simple_test_bboxes(feat, img_metas, rescale=rescale)
+    #     # bbox_list = self.bbox_head.get_bboxes(
+    #     #     *outs, img_metas, rescale=rescale)
+    #     # skip post-processing when exporting to ONNX
     #     bbox_results = [
-    #         rbbox2result(det_bboxes, det_labels,
-    #                      self.refine_head[-1].num_classes)
-    #         for det_bboxes, det_labels in bbox_list
-    #     ]
+    #         self.rbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
+    #         for det_bboxes, det_labels in results_list]
     #     return bbox_results
+
 
     def simple_test(self, img, img_metas, rescale=False):
         # 为了使用裁剪小图策略推理标准模型
         """Test function without test time augmentation.
-
         Args:
             imgs (list[torch.Tensor]): List of multiple images
             img_metas (list[dict]): List of image information.
@@ -332,26 +356,25 @@ class R3DetCrop(RotatedBaseDetector):
                 The outer list corresponds to each image. The inner list \
                 corresponds to each class.
         """
-        # print('single stage infetence!!!!!!')
         gaps = [200]
         patch_shape = (1024, 1024)
         p_bs = 4  # patch batchsize
-        # Crop full img into patches
         gt_bboxes=[]
         gt_labels=[]
         p_imgs, p_metas = FullImageCrop(self, img, gt_bboxes, gt_labels,
                                         patch_shape=patch_shape,
                                         gaps=gaps, mode='test')
+
         local_bboxes_lists=[]
         for i in range(img.shape[0]):
             j = 0
-            # patches = list2tensor(p_imgs[i])  # list to tensor,此时放在cpu上
             p_imgs[i]=torch.stack(p_imgs[i], dim=0)
             patches=p_imgs[i]
             patches_meta = p_metas[i]
-            # patch batchsize
+
             while j < len(p_imgs[i]):
                 if (j+p_bs) >= len(p_imgs[i]):
+                    patch = patches[j:]
                     patch = patches[j:]
                     patch_meta = patches_meta[j:]
                 else:
@@ -360,32 +383,19 @@ class R3DetCrop(RotatedBaseDetector):
 
                 with torch.no_grad():
                     fea_l_neck = self.extract_feat(patch)
-                    outs_local = self.bbox_head(fea_l_neck)
-                    rois_local = self.bbox_head.filter_bboxes(*outs_local)
-                    # rois: list(indexed by images) of list(indexed by levels)
-                    for i in range(self.num_refine_stages):
-                        x_refine = self.feat_refine_module[i](fea_l_neck, rois_local)
-                        outs_local = self.refine_head[i](x_refine)
-                        if i + 1 in range(self.num_refine_stages):
-                            rois_local = self.refine_head[i].refine_bboxes(*outs_local, rois=rois_local)
-
-                    bbox_inputs = outs_local + (patch_meta, self.test_cfg, True)
-                    local_bbox_list = self.refine_head[-1].get_bboxes(*bbox_inputs, rois=rois_local)
-
-                    for idx, res_list in enumerate(local_bbox_list):
+                    local_results_list = self.bbox_head.simple_test_bboxes(fea_l_neck, patch_meta, rescale=False)
+                    
+                    for idx, res_list in enumerate(local_results_list):
                         det_bboxes, det_labels = res_list
                         relocate(idx, det_bboxes, patch_meta)
-                    local_bboxes_lists.append(local_bbox_list)
-
+                    local_bboxes_lists.append(local_results_list)
                 j = j+p_bs
         
         bbox_list = [merge_results([local_bboxes_lists],iou_thr=0.4)]
+
         bbox_results = [
             rbbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
             for det_bboxes, det_labels in bbox_list
         ]
+
         return bbox_results
-    
-    def aug_test(self, imgs, img_metas, **kwargs):
-        """Test function with test time augmentation."""
-        pass

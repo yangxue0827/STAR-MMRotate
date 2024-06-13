@@ -344,7 +344,6 @@ class S2ANetCrop(RotatedBaseDetector):
             while j < len(p_imgs[i]):
                 if (j+p_bs) >= len(p_imgs[i]):
                     patch = patches[j:]
-                    patch = patches[j:]
                     patch_meta = patches_meta[j:]
                 else:
                     patch = patches[j:j + p_bs]

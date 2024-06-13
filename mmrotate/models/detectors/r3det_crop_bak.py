@@ -8,8 +8,7 @@ from ..builder import ROTATED_DETECTORS, build_backbone, build_head, build_neck
 from .base import RotatedBaseDetector
 from .utils import FeatureRefineModule
 
-
-from mmrotate.models.detectors.single_stage_img_split_bridge_tools import *
+from .single_stage_img_split_bridge_tools import *
 from mmdet.utils import get_device
 
 def resize_bboxes(bboxes,scale):
@@ -45,10 +44,8 @@ def list2tensor(img_lists):
     '''
     inputs = []
     for img in img_lists:
-        inputs.append(img.cpu())  # 转移到cpu上,否则torch.stack内存不足
+        inputs.append(img.cpu())
     inputs = torch.stack(inputs, dim=0)
-    # inputs = torch.stack(inputs, dim=0).to(get_device())
-    
     return inputs
 
 def FullImageCrop(self, imgs, bboxes, labels, patch_shape,
@@ -65,18 +62,19 @@ def FullImageCrop(self, imgs, bboxes, labels, patch_shape,
     Returns:
         dict[str, Tensor]: A dictionary of loss components.
     """
-    out_imgs = []
-    out_bboxes = []
-    out_labels = []
-    out_metas = []
+    out_imgs=[]
+    out_bboxes=[]
+    out_labels=[]
+    out_metas=[]
     device = get_device()
     img_rate_thr = 0.6  # 图片与wins窗口的交并比阈值
     iof_thr = 0.1  # 裁剪后的标签占原标签的比值阈值
     padding_value = [0.0081917211329, -0.004901960784, 0.0055655449953]  # 归一化后的padding值
 
+
     if mode == 'train':
         # for i in range(imgs.shape[0]):
-        for img, bbox, label in zip(imgs, [bboxes], [labels]):
+        for img, bbox, label in zip(imgs, bboxes, labels):
             p_imgs = []
             p_bboxes = []
             p_labels = []
@@ -84,14 +82,14 @@ def FullImageCrop(self, imgs, bboxes, labels, patch_shape,
             img = img.cpu()
             # patch
             info = dict()
-            info['labels'] = np.array(torch.tensor(label, device='cpu', requires_grad=False))
+            info['labels'] = np.array(torch.tensor(label, device='cpu',requires_grad=False))
             info['ann'] = {'bboxes': {}}
             info['width'] = img.shape[2]
             info['height'] = img.shape[1]
 
             tmp_boxes = torch.tensor(bbox, device='cpu', requires_grad=False)
-            info['ann']['bboxes'] = np.array(obb2poly(tmp_boxes, self.version))  # 这里将OBB转换为8点表示形式
-            bbbox = info['ann']['bboxes']
+            info['ann']['bboxes'] = np.array(obb2poly(tmp_boxes, self.version))
+
             sizes = [patch_shape[0]]
             # gaps=[0]
             windows = get_sliding_window(info, sizes, gaps, img_rate_thr)
@@ -99,29 +97,20 @@ def FullImageCrop(self, imgs, bboxes, labels, patch_shape,
             patchs, patch_infos = crop_and_save_img(info, windows, window_anns,
                                                     img,
                                                     no_padding=True,
-                                                    # no_padding=False,
                                                     padding_value=padding_value)
 
-            # 对每张大图分解成的子图集合中的每张子图遍历
             for i, patch_info in enumerate(patch_infos):
                 if jump_empty_patch:
-                    # 如果该patch中不含有效标签,将其跳过不输出,可在训练时使用
-
                     if patch_info['labels'] == [-1]:
-                        # print('Patch does not contain box.\n')
-                        continue
+                        continue                
+
                 obj = patch_info['ann']
-                if min(obj['bboxes'].shape) == 0:  # 张量为空
-                    tmp_boxes = poly2obb(torch.tensor(obj['bboxes']), 'oc')  # oc转化可以处理空张量
-                else:
-                    tmp_boxes = poly2obb(torch.tensor(obj['bboxes']), self.version)  # 转化回5参数
+                tmp_boxes = poly2obb(torch.tensor(obj['bboxes']), self.version)
                 p_bboxes.append(tmp_boxes.to(device))
-                # p_trunc.append(torch.tensor(obj['trunc'],device=device))  # 是否截断,box全部在win内部时为false
-                ## 若box超出win范围则trunc为true
                 p_labels.append(torch.tensor(patch_info['labels'], device=device))
                 p_metas.append({'x_start': torch.tensor(patch_info['x_start'], device=device),
                                 'y_start': torch.tensor(patch_info['y_start'], device=device),
-                                'shape': patch_shape, 'trunc': torch.tensor(obj['trunc'], device=device),'img_shape': patch_shape, 'scale_factor': 1})
+                                'shape': patch_shape, 'trunc': torch.tensor(obj['trunc'], device=device)})
 
                 patch = patchs[i]
                 p_imgs.append(patch.to(device))
@@ -131,11 +120,7 @@ def FullImageCrop(self, imgs, bboxes, labels, patch_shape,
             out_labels.append(p_labels)
             out_metas.append(p_metas)
 
-            #### change for sgdet
-            # poly2obb(out_bboxes, self.version)
-            return out_imgs, out_bboxes, out_labels, out_metas
-
-    elif mode == 'test':
+    elif mode =='test':
         p_imgs = []
         p_metas = []
         img = imgs.cpu().squeeze(0)
@@ -149,15 +134,14 @@ def FullImageCrop(self, imgs, bboxes, labels, patch_shape,
         sizes = [patch_shape[0]]
         # gaps=[0]
         windows = get_sliding_window(info, sizes, gaps, img_rate_thr)
-        patchs, patch_infos = crop_img_withoutann(info, windows, img,
+        patchs, patch_infos = crop_img_withoutann(info, windows,img,
                                                   no_padding=False,
                                                   padding_value=padding_value)
 
-        # 对每张大图分解成的子图集合中的每张子图遍历
         for i, patch_info in enumerate(patch_infos):
             p_metas.append({'x_start': torch.tensor(patch_info['x_start'], device=device),
                             'y_start': torch.tensor(patch_info['y_start'], device=device),
-                            'shape': patch_shape, 'img_shape': patch_shape, 'scale_factor': 1})
+                            'shape': patch_shape,'img_shape':patch_shape, 'scale_factor':1})
 
             patch = patchs[i]
             p_imgs.append(patch.to(device))
@@ -167,7 +151,15 @@ def FullImageCrop(self, imgs, bboxes, labels, patch_shape,
 
         return out_imgs, out_metas
 
-    return out_imgs, out_bboxes, out_labels, out_metas
+
+    return out_imgs, out_bboxes,out_labels, out_metas
+
+def get_single_img(fea_g_necks, i):
+    fea_g_neck=[]
+    for idx in range(len(fea_g_necks)):
+        fea_g_neck.append(fea_g_necks[idx][i])
+
+    return tuple(fea_g_neck)
 
 def relocate(idx, local_bboxes, patch_meta):
     # put patches' local bboxes to full img via patch_meta
@@ -183,6 +175,8 @@ def relocate(idx, local_bboxes, patch_meta):
         bbox[1] += top
 
     return
+
+
 
 @ROTATED_DETECTORS.register_module()
 class R3DetCrop(RotatedBaseDetector):
@@ -317,8 +311,7 @@ class R3DetCrop(RotatedBaseDetector):
     #     ]
     #     return bbox_results
 
-    def simple_test(self, img, img_metas, rescale=False):
-        # 为了使用裁剪小图策略推理标准模型
+    def simple_test(self, img, img_meta, rescale=False):
         """Test function without test time augmentation.
 
         Args:
@@ -332,7 +325,6 @@ class R3DetCrop(RotatedBaseDetector):
                 The outer list corresponds to each image. The inner list \
                 corresponds to each class.
         """
-        # print('single stage infetence!!!!!!')
         gaps = [200]
         patch_shape = (1024, 1024)
         p_bs = 4  # patch batchsize
@@ -345,9 +337,7 @@ class R3DetCrop(RotatedBaseDetector):
         local_bboxes_lists=[]
         for i in range(img.shape[0]):
             j = 0
-            # patches = list2tensor(p_imgs[i])  # list to tensor,此时放在cpu上
-            p_imgs[i]=torch.stack(p_imgs[i], dim=0)
-            patches=p_imgs[i]
+            patches = list2tensor(p_imgs[i])
             patches_meta = p_metas[i]
             # patch batchsize
             while j < len(p_imgs[i]):
@@ -356,36 +346,36 @@ class R3DetCrop(RotatedBaseDetector):
                     patch_meta = patches_meta[j:]
                 else:
                     patch = patches[j:j + p_bs]
-                    patch_meta = patches_meta[j:j + p_bs]  # x_start and y_start
-
+                    patch_meta = patches_meta[j:j + p_bs] 
                 with torch.no_grad():
-                    fea_l_neck = self.extract_feat(patch)
-                    outs_local = self.bbox_head(fea_l_neck)
-                    rois_local = self.bbox_head.filter_bboxes(*outs_local)
+                    patch=patch.cuda() 
+                    x = self.extract_feat(patch)
+                    outs = self.bbox_head(x)
+                    rois = self.bbox_head.filter_bboxes(*outs)
                     # rois: list(indexed by images) of list(indexed by levels)
                     for i in range(self.num_refine_stages):
-                        x_refine = self.feat_refine_module[i](fea_l_neck, rois_local)
-                        outs_local = self.refine_head[i](x_refine)
+                        x_refine = self.feat_refine_module[i](x, rois)
+                        outs = self.refine_head[i](x_refine)
                         if i + 1 in range(self.num_refine_stages):
-                            rois_local = self.refine_head[i].refine_bboxes(*outs_local, rois=rois_local)
-
-                    bbox_inputs = outs_local + (patch_meta, self.test_cfg, True)
-                    local_bbox_list = self.refine_head[-1].get_bboxes(*bbox_inputs, rois=rois_local)
-
+                            rois = self.refine_head[i].refine_bboxes(*outs, rois=rois)
+                    bbox_inputs = outs + (patch_meta, self.test_cfg, rescale)
+                    local_bbox_list = self.refine_head[-1].get_bboxes(*bbox_inputs, rois=rois)
+              
                     for idx, res_list in enumerate(local_bbox_list):
                         det_bboxes, det_labels = res_list
                         relocate(idx, det_bboxes, patch_meta)
                     local_bboxes_lists.append(local_bbox_list)
 
                 j = j+p_bs
-        
+
         bbox_list = [merge_results([local_bboxes_lists],iou_thr=0.4)]
         bbox_results = [
-            rbbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
+            rbbox2result(det_bboxes, det_labels,
+                         self.refine_head[-1].num_classes)
             for det_bboxes, det_labels in bbox_list
         ]
         return bbox_results
-    
+
     def aug_test(self, imgs, img_metas, **kwargs):
         """Test function with test time augmentation."""
         pass

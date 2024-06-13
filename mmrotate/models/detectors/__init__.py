@@ -15,6 +15,7 @@ from .single_stage_crop import RotatedSingleStageDetectorCrop
 from .two_stage import RotatedTwoStageDetector
 from .two_stage_crop import RotatedTwoStageDetectorCrop
 from .rotated_detr import RotatedDETR
+from .rotated_detr_crop import RotatedDETRCrop
 from .rotated_deformable_detr import RotatedDeformableDETR
 from .ars_detr import ARSDETR
 from .h2rbox import H2RBox
@@ -26,5 +27,6 @@ __all__ = [
     'GlidingVertex', 'ReDet', 'R3Det', 'S2ANet', 'RotatedRepPoints',
     'RotatedBaseDetector', 'RotatedSingleStageDetectorCrop', 'RotatedTwoStageDetector',
     'RotatedSingleStageDetector', 'RotatedFCOS', 'RotatedTwoStageDetectorCrop',
-    'RotatedDETR', 'RotatedDeformableDETR', 'ARSDETR', 'H2RBox','R3DetCrop','S2ANetCrop'
+    'RotatedDETR', 'RotatedDeformableDETR', 'ARSDETR', 'H2RBox','R3DetCrop','S2ANetCrop',
+    'RotatedDETRCrop'
 ]
