@@ -24,6 +24,7 @@ from .h2rbox_head import H2RBoxHead
 from .psc_rotated_fcos_head import PSCRFCOSHead
 from .kld_reppoints_head import KLDRepPointsHead
 from .h2rbox_v2p_head import H2RBoxV2PHead
+from .dcfl_head import RDCFLHead
 
 __all__ = [
     'RotatedAnchorHead', 'RotatedRetinaHead', 'RotatedRPNHead',
@@ -33,5 +34,6 @@ __all__ = [
     'RotatedATSSHead', 'RotatedAnchorFreeHead', 'RotatedFCOSHead',
     'CSLRFCOSHead', 'OrientedRepPointsHead', 'RotatedDETRHead', 
     'RotatedDeformableDETRHead', 'ARSDeformableDETRHead', 'DNARSDeformableDETRHead',
-    'H2RBoxHead', 'PSCRFCOSHead', 'KLDRepPointsHead', 'H2RBoxV2PHead'
+    'H2RBoxHead', 'PSCRFCOSHead', 'KLDRepPointsHead', 'H2RBoxV2PHead',
+    'RDCFLHead'
 ]

@@ -79,34 +79,10 @@ train_pipeline = [
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'])
 ]
 
-test_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(
-        type='MultiScaleFlipAug',
-        scale_factor=1.0,
-        flip=False,
-        transforms=[
-            dict(type='Normalize', **img_norm_cfg),
-            dict(type='Pad', size_divisor=64),
-            dict(type='DefaultFormatBundle'),
-            dict(type='Collect', keys=['img'])
-        ])
-]
-
-data_root = 'data/RSG/'
 data = dict(
-    train=dict(type='RSGWSOODDataset', pipeline=train_pipeline,
-               ann_file=data_root + 'train/annfiles/',
-               img_prefix=data_root + 'train/images/',
-               version=angle_version),
-    val=dict(type='RSGWSOODDataset', pipeline=test_pipeline,
-             ann_file=data_root + 'test/annfiles/',
-             img_prefix=data_root + 'test/images/',
-             version=angle_version),
-    test=dict(type='RSGWSOODDataset', pipeline=test_pipeline,
-              ann_file=data_root + 'test/annfiles/',
-              img_prefix=data_root + 'test/images/',
-              version=angle_version))
+    train=dict(pipeline=train_pipeline, version=angle_version),
+    val=dict(version=angle_version),
+    test=dict(version=angle_version))
 
 optimizer = dict(
     _delete_=True,
