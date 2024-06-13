@@ -70,7 +70,9 @@ class RotatedFCOSHead(RotatedAnchorFreeHead):
                  centerness_on_reg=False,
                  separate_angle=False,
                  scale_angle=True,
+                 joint_angle=False,
                  h_bbox_coder=dict(type='DistancePointBBoxCoder'),
+                 angle_coder=None,
                  loss_cls=dict(
                      type='FocalLoss',
                      use_sigmoid=True,
@@ -101,6 +103,9 @@ class RotatedFCOSHead(RotatedAnchorFreeHead):
         self.centerness_on_reg = centerness_on_reg
         self.separate_angle = separate_angle
         self.is_scale_angle = scale_angle
+        self.joint_angle = joint_angle
+        if angle_coder:
+            self.angle_coder = build_bbox_coder(angle_coder)
         super().__init__(
             num_classes,
             in_channels,
@@ -119,7 +124,11 @@ class RotatedFCOSHead(RotatedAnchorFreeHead):
         """Initialize layers of the head."""
         super()._init_layers()
         self.conv_centerness = nn.Conv2d(self.feat_channels, 1, 3, padding=1)
-        self.conv_angle = nn.Conv2d(self.feat_channels, 1, 3, padding=1)
+        if self.angle_coder:
+            self.conv_angle = nn.Conv2d(
+                self.feat_channels, self.angle_coder.encode_size, 3, padding=1)
+        else:
+            self.conv_angle = nn.Conv2d(self.feat_channels, 1, 3, padding=1)
         self.scales = nn.ModuleList([Scale(1.0) for _ in self.strides])
         if self.is_scale_angle:
             self.scale_angle = Scale(1.0)
@@ -234,10 +243,16 @@ class RotatedFCOSHead(RotatedAnchorFreeHead):
             bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4)
             for bbox_pred in bbox_preds
         ]
-        flatten_angle_preds = [
-            angle_pred.permute(0, 2, 3, 1).reshape(-1, 1)
-            for angle_pred in angle_preds
-        ]
+        if self.angle_coder:
+            flatten_angle_preds = [
+                angle_pred.permute(0, 2, 3, 1).reshape(-1, self.angle_coder.encode_size)
+                for angle_pred in angle_preds
+            ]
+        else:
+            flatten_angle_preds = [
+                angle_pred.permute(0, 2, 3, 1).reshape(-1, 1)
+                for angle_pred in angle_preds
+            ]
         flatten_centerness = [
             centerness.permute(0, 2, 3, 1).reshape(-1)
             for centerness in centernesses
@@ -275,7 +290,14 @@ class RotatedFCOSHead(RotatedAnchorFreeHead):
 
         if len(pos_inds) > 0:
             pos_points = flatten_points[pos_inds]
-            if self.separate_angle:
+            if self.joint_angle:
+                bbox_coder = self.bbox_coder
+                pos_dec_angle_preds = self.angle_coder.decode(pos_angle_preds, keepdim=True)
+                pos_bbox_preds = torch.cat([pos_bbox_preds, pos_dec_angle_preds],
+                                           dim=-1)
+                pos_bbox_targets = torch.cat(
+                    [pos_bbox_targets, pos_angle_targets], dim=-1)
+            elif self.separate_angle:
                 bbox_coder = self.h_bbox_coder
             else:
                 bbox_coder = self.bbox_coder
@@ -293,6 +315,8 @@ class RotatedFCOSHead(RotatedAnchorFreeHead):
                 weight=pos_centerness_targets,
                 avg_factor=centerness_denorm)
             if self.separate_angle:
+                if self.angle_coder:
+                    pos_angle_targets = self.angle_coder.encode(pos_angle_targets)
                 loss_angle = self.loss_angle(
                     pos_angle_preds, pos_angle_targets, avg_factor=num_pos)
             loss_centerness = self.loss_centerness(
@@ -597,7 +621,11 @@ class RotatedFCOSHead(RotatedAnchorFreeHead):
             centerness = centerness.permute(1, 2, 0).reshape(-1).sigmoid()
 
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
-            angle_pred = angle_pred.permute(1, 2, 0).reshape(-1, 1)
+            if self.angle_coder:
+                angle_pred = angle_pred.permute(1, 2, 0).reshape(-1, self.angle_coder.encode_size)
+                angle_pred = self.angle_coder.decode(angle_pred, keepdim=True)
+            else:
+                angle_pred = angle_pred.permute(1, 2, 0).reshape(-1, 1)
             bbox_pred = torch.cat([bbox_pred, angle_pred], dim=1)
             nms_pre = cfg.get('nms_pre', -1)
             if nms_pre > 0 and scores.shape[0] > nms_pre:
