@@ -18,7 +18,7 @@ Scene graph generation (SGG) in satellite imagery (SAI) benefits promoting intel
 
 ## 🛠️ Usage
 
-For instructions on installation, pretrained models, training and evaluation, please refer to [mmrotate](README_en.md).
+For instructions on installation, pretrained models, training and evaluation, please refer to [MMRotate 0.3.4](README_en.md).
 
 ## 🚀 Released Models
 
