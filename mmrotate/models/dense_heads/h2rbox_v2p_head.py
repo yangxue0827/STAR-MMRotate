@@ -737,7 +737,7 @@ class H2RBoxV2PHead(RotatedAnchorFreeHead):
             cfg.max_per_img,
             score_factors=mlvl_centerness)
         for id in self.square_cls:
-            det_bboxes[det_labels == id, -1] = 0
+            det_bboxes[det_labels == id, 4] = 0
         for id in self.resize_cls:
             det_bboxes[det_labels == id, 2:4] *= 0.85
         return det_bboxes, det_labels
