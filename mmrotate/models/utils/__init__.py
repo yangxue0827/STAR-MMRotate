@@ -9,6 +9,8 @@ from .ars_rotated_transformer import ARSRotatedDeformableDetrTransformer
 from .query_denoising import build_dn_generator
 from .dn_ars_rotated_transformer import DNARSRotatedDeformableDetrTransformer, DNARSDeformableDetrTransformerDecoder
 from .multi_scale_rotate_deform_attn import RotatedMultiScaleDeformableAttention
+from .pkinet_utils import autopad, make_divisible, BCHW2BHWC, BHWC2BCHW
+
 
 __all__ = [
     'ORConv2d', 'RotationInvariantPooling', 'ennConv', 'ennReLU', 'ennAvgPool',
@@ -19,4 +21,5 @@ __all__ = [
     'build_dn_generator', 'DNARSRotatedDeformableDetrTransformer',
     'DNARSDeformableDetrTransformerDecoder',
     'RotatedMultiScaleDeformableAttention',
+    'autopad', 'make_divisible', 'BCHW2BHWC', 'BHWC2BCHW'
 ]
