@@ -252,7 +252,7 @@ class SARWSOODDataset(DOTAWSOODDataset):
 
 
 @ROTATED_DATASETS.register_module()
-class RSGWSOODDataset(DOTAWSOODDataset):
+class STARWSOODDataset(DOTAWSOODDataset):
 
     CLASSES = ('ship','boat','crane','goods_yard','tank','storehouse','breakwater','dock',
                'airplane','boarding_bridge','runway','taxiway','terminal','apron','gas_station',
@@ -286,7 +286,7 @@ class RSGWSOODDataset(DOTAWSOODDataset):
                  weak_supervised=True,
                  **kwargs):
 
-        super(RSGWSOODDataset, self).__init__(ann_file, pipeline,
+        super(STARWSOODDataset, self).__init__(ann_file, pipeline,
                                               version, difficulty,
                                               rect_classes, weak_supervised,
                                               **kwargs)
