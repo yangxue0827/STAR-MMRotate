@@ -6,7 +6,7 @@ The official implementation of the oriented object detection part of the paper "
 
 **TL;DR:** We propose STAR, the first large-scale dataset for scene graph generation in large-size VHR SAI. Containing more than `210,000` objects and over `400,000` triplets across `1,273` complex scenarios globally.
 
-https://private-user-images.githubusercontent.com/29257168/339049597-2d027f2c-8911-45ba-b4dd-7f95111465a9.mp4
+https://private-user-images.githubusercontent.com/29257168/345304070-0d1b8726-5a46-4182-95b9-bc70a050e49b.mp4
 
 ## 📌 Abstract
 
