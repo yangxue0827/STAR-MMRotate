@@ -100,8 +100,8 @@ More instructions on installation, pretrained models, training and evaluation, p
 If you find this work helpful for your research, please consider giving this repo a star ⭐ and citing our paper:
 
 ```bibtex
-@article{li2024scene,
-  title={Scene Graph Generation in Large-Size VHR Satellite Imagery: A Large-Scale Dataset and A Context-Aware Approach},
+@article{li2024star,
+  title={STAR: A First-Ever Dataset and A Large-Scale Benchmark for Scene Graph Generation in Large-Size Satellite Imagery},
   author={Li, Yansheng and Wang, Linlin and Wang, Tingzhu and Yang, Xue and Luo, Junwei and Wang, Qi and Deng, Youming and Wang, Wenbin and Sun, Xian and Li, Haifeng and Dang, Bo and Zhang, Yongjun and Yi, Yu and Yan, Junchi},
   journal={arXiv preprint arXiv:},
   year={2024}
