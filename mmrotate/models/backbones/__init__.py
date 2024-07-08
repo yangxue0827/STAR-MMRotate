@@ -13,7 +13,8 @@ from .swin_fixed import SwinFixed
 from .swin_partial_1 import SwinPartial1
 from .swin_adaptformer import SwinAdaptFormer
 from .swin_lorand import SwinLoRand
+from .swin_base import SwinBase
 
 __all__ = ['ReResNet', 'LSKNet', 'PKINet', 'SwinTransformerMona', 'SwinTransformerFull', 
            'SwinMona', 'SwinAdapter', 'SwinLoRA', 'SwinBitFit', 'SwinNormTunning', 'SwinFixed',
-           'SwinPartial1', 'SwinAdaptFormer', 'SwinLoRand']
+           'SwinPartial1', 'SwinAdaptFormer', 'SwinLoRand', 'SwinBase']
