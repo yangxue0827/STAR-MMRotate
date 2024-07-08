@@ -124,4 +124,4 @@ mmrotate/.mim
 *.pth
 pjlab*
 torch-batch-svd/
-data/STAR
+data/

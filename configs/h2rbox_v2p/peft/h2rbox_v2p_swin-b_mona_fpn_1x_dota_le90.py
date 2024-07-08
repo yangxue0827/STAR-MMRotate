@@ -1,6 +1,6 @@
 _base_ = [
-    '../_base_/datasets/dotav1.py', '../_base_/schedules/schedule_1x.py',
-    '../_base_/default_runtime.py'
+    '../../_base_/datasets/dotav1.py', '../../_base_/schedules/schedule_1x.py',
+    '../../_base_/default_runtime.py'
 ]
 angle_version = 'le90'
 
@@ -8,21 +8,33 @@ angle_version = 'le90'
 model = dict(
     type='H2RBoxV2PDetector',
     backbone=dict(
-        type='ResNet',
-        depth=50,
-        num_stages=4,
-        out_indices=(0, 1, 2, 3),
-        frozen_stages=1,
-        zero_init_residual=False,
-        norm_cfg=dict(type='BN', requires_grad=True),
-        norm_eval=True,
-        style='pytorch',
-        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50')),
+        type='SwinMona',
+        pretrain_img_size=224,
+        embed_dims=128,
+        depths=[2, 2, 18, 2],
+        num_heads=[4, 8, 16, 32],
+        window_size=7,
+        patch_size=4,
+        mlp_ratio=4,
+        qkv_bias=True,
+        qk_scale=None,
+        drop_rate=0.0,
+        attn_drop_rate=0.0,
+        drop_path_rate=0.2,
+        patch_norm=True,
+        out_indices=(1, 2, 3),
+        with_cp=False,
+        convert_weights=False,
+        init_cfg=dict(
+            type='Pretrained',
+            checkpoint=
+            'pretrain/swin_base_patch4_window7_224_22k_20220317-4f79f7c0.pth' # https://download.openmmlab.com/mmsegmentation/v0.5/pretrain/swin/swin_base_patch4_window7_224_22k_20220317-4f79f7c0.pth
+        )),
     neck=dict(
         type='FPN',
-        in_channels=[256, 512, 1024, 2048],
+        in_channels=[256, 512, 1024],
         out_channels=256,
-        start_level=1,
+        start_level=0,
         add_extra_convs='on_output',  # use P5
         num_outs=5,
         relu_before_extra_convs=True),
@@ -79,7 +91,7 @@ train_pipeline = [
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'])
 ]
 
-data_root = 'data/split_1024_dota1_0/'
+data_root = 'data/split_ss_dota/'
 data = dict(
     train=dict(type='DOTAWSOODDataset', pipeline=train_pipeline,
                ann_file=data_root + 'trainval/annfiles/',
@@ -100,3 +112,6 @@ optimizer = dict(
     lr=0.00005,
     betas=(0.9, 0.999),
     weight_decay=0.05)
+
+checkpoint_config = dict(interval=1, max_keep_ckpts=1)
+evaluation = dict(interval=6, metric='mAP')
