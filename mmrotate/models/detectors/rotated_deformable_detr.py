@@ -10,7 +10,7 @@ from .rotated_detr import RotatedDETR
 class RotatedDeformableDETR(RotatedDETR):
 
     def __init__(self, *args, **kwargs):
-        super(RotatedDETRCrop, self).__init__(*args, **kwargs)
+        super(RotatedDETR, self).__init__(*args, **kwargs)
         
 
 @ROTATED_DETECTORS.register_module()
